@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -75,5 +76,19 @@ public class GlobalExceptionHandler {
         ErroResponse corpo = new ErroResponse(LocalDateTime.now(), status.value(), codigo,
                 mensagem, req.getRequestURI(), detalhes);
         return ResponseEntity.status(status).body(corpo);
+    }
+
+    @ExceptionHandler(NegocioException.class)
+    public ResponseEntity<ErroResponse> negocio(NegocioException ex, HttpServletRequest req) {
+        return erro(HttpStatus.CONFLICT, ex.getCodigo(), ex.getMessage(), req, List.of());
+    }
+
+   
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErroResponse> integridade(DataIntegrityViolationException ex,
+                                                    HttpServletRequest req) {
+        log.warn("Violação de integridade em {}: {}", req.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        return erro(HttpStatus.CONFLICT, "CONFLITO_DADOS",
+                "A operação viola uma regra de integridade dos dados", req, List.of());
     }
 }
