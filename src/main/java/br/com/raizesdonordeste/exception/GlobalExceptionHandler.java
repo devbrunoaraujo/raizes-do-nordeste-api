@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -90,5 +92,25 @@ public class GlobalExceptionHandler {
         log.warn("Violação de integridade em {}: {}", req.getRequestURI(), ex.getMostSpecificCause().getMessage());
         return erro(HttpStatus.CONFLICT, "CONFLITO_DADOS",
                 "A operação viola uma regra de integridade dos dados", req, List.of());
+    }
+
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<ErroResponse> credenciaisInvalidas(CredenciaisInvalidasException ex,
+                                                             HttpServletRequest req) {
+        return erro(HttpStatus.UNAUTHORIZED, "CREDENCIAIS_INVALIDAS", ex.getMessage(), req, List.of());
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErroResponse> naoAutenticado(AuthenticationException ex,
+                                                       HttpServletRequest req) {
+        return erro(HttpStatus.UNAUTHORIZED, "NAO_AUTENTICADO",
+                "Autenticação necessária ou token inválido", req, List.of());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErroResponse> acessoNegado(AccessDeniedException ex,
+                                                     HttpServletRequest req) {
+        return erro(HttpStatus.FORBIDDEN, "ACESSO_NEGADO",
+                "Você não tem permissão para acessar este recurso", req, List.of());
     }
 }
