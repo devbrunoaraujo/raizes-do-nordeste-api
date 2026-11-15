@@ -5,5 +5,10 @@ public enum Role {
     ATENDENTE,
     COZINHA,
     GERENTE,
-    ADMIN
+    ADMIN;
+
+    /** Funcionários de loja precisam estar vinculados a uma unidade. */
+    public boolean exigeUnidade() {
+        return this == GERENTE || this == ATENDENTE || this == COZINHA;
+    }
 }

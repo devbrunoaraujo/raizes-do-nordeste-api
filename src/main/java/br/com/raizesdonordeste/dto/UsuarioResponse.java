@@ -8,9 +8,11 @@ public record UsuarioResponse(
         String nome,
         String email,
         Role role,
+        Long unidadeId,
         boolean ativo
 ) {
     public static UsuarioResponse de(Usuario u) {
-        return new UsuarioResponse(u.getId(), u.getNome(), u.getEmail(), u.getRole(), u.isAtivo());
+        Long unidadeId = u.getUnidade() != null ? u.getUnidade().getId() : null;
+        return new UsuarioResponse(u.getId(), u.getNome(), u.getEmail(), u.getRole(), unidadeId, u.isAtivo());
     }
 }
