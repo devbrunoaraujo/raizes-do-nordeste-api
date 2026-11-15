@@ -91,4 +91,10 @@ public class GlobalExceptionHandler {
         return erro(HttpStatus.CONFLICT, "CONFLITO_DADOS",
                 "A operação viola uma regra de integridade dos dados", req, List.of());
     }
+
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<ErroResponse> credenciaisInvalidas(CredenciaisInvalidasException ex,
+                                                             HttpServletRequest req) {
+        return erro(HttpStatus.UNAUTHORIZED, "CREDENCIAIS_INVALIDAS", ex.getMessage(), req, List.of());
+    }
 }

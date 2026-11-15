@@ -1,7 +1,10 @@
 package br.com.raizesdonordeste.controller;
 
+import br.com.raizesdonordeste.dto.LoginRequest;
 import br.com.raizesdonordeste.dto.RegistroRequest;
+import br.com.raizesdonordeste.dto.TokenResponse;
 import br.com.raizesdonordeste.dto.UsuarioResponse;
+import br.com.raizesdonordeste.service.AuthService;
 import br.com.raizesdonordeste.service.UsuarioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,12 @@ import java.net.URI;
 public class AuthController {
 
     private final UsuarioService usuarioService;
+    private final AuthService authService;
+
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
 
     @PostMapping("/register")
     public ResponseEntity<UsuarioResponse> registrar(@Valid @RequestBody RegistroRequest request) {
