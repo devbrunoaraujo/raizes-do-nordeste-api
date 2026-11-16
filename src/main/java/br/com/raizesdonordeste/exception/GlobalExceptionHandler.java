@@ -113,4 +113,9 @@ public class GlobalExceptionHandler {
         return erro(HttpStatus.FORBIDDEN, "ACESSO_NEGADO",
                 "Você não tem permissão para acessar este recurso", req, List.of());
     }
+
+    @ExceptionHandler(AcessoNegadoException.class)
+    public ResponseEntity<ErroResponse> escopoNegado(AcessoNegadoException ex, HttpServletRequest req) {
+        return erro(HttpStatus.FORBIDDEN, "ACESSO_NEGADO", ex.getMessage(), req, List.of());
+    }
 }

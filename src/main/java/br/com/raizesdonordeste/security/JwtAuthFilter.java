@@ -42,8 +42,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     private void autenticar(Usuario usuario) {
+        Long unidadeId = usuario.getUnidade() != null ? usuario.getUnidade().getId() : null;
         UsuarioAutenticado principal =
-                new UsuarioAutenticado(usuario.getId(), usuario.getEmail(), usuario.getRole());
+                new UsuarioAutenticado(usuario.getId(), usuario.getEmail(), usuario.getRole(), unidadeId);
         var autenticacao = new UsernamePasswordAuthenticationToken(
                 principal, null,
                 List.of(new SimpleGrantedAuthority("ROLE_" + usuario.getRole().name())));
