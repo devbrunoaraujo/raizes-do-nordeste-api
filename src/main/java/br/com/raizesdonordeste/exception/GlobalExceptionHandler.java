@@ -3,6 +3,7 @@ package br.com.raizesdonordeste.exception;
 import br.com.raizesdonordeste.dto.ErroResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -117,5 +118,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AcessoNegadoException.class)
     public ResponseEntity<ErroResponse> escopoNegado(AcessoNegadoException ex, HttpServletRequest req) {
         return erro(HttpStatus.FORBIDDEN, "ACESSO_NEGADO", ex.getMessage(), req, List.of());
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErroResponse> concorrencia(OptimisticLockingFailureException ex,
+                                                     HttpServletRequest req) {
+        return erro(HttpStatus.CONFLICT, "CONFLITO_CONCORRENCIA",
+                "O registro foi alterado por outra operação. Tente novamente", req, List.of());
     }
 }
