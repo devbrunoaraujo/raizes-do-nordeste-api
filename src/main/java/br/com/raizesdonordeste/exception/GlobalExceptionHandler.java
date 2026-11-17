@@ -126,4 +126,9 @@ public class GlobalExceptionHandler {
         return erro(HttpStatus.CONFLICT, "CONFLITO_CONCORRENCIA",
                 "O registro foi alterado por outra operação. Tente novamente", req, List.of());
     }
+
+    @ExceptionHandler(ValidacaoException.class)
+    public ResponseEntity<ErroResponse> validacaoNegocio(ValidacaoException ex, HttpServletRequest req) {
+        return erro(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDACAO", ex.getMessage(), req, List.of());
+    }
 }
