@@ -43,6 +43,8 @@ public class SecurityConfig {
                         .requestMatchers("/unidades/**").hasRole("ADMIN")
                         .requestMatchers("/produtos/**").hasAnyRole("GERENTE", "ADMIN")
                         .requestMatchers("/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/pedidos")
+                        .hasAnyRole("CLIENTE", "ATENDENTE", "GERENTE", "ADMIN")
                         .anyRequest().authenticated())
                 // Erros de segurança passam pelo GlobalExceptionHandler: mesmo JSON padrão da API
                 .exceptionHandling(e -> e

@@ -59,4 +59,10 @@ public class UsuarioService {
                 .unidade(unidade)
                 .build());
     }
+
+    @Transactional(readOnly = true)
+    public Usuario buscarEntidade(Long id) {
+        return usuarioRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+    }
 }

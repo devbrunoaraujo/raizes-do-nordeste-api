@@ -9,6 +9,7 @@ import br.com.raizesdonordeste.entity.MovimentacaoEstoque;
 import br.com.raizesdonordeste.entity.Produto;
 import br.com.raizesdonordeste.entity.Unidade;
 import br.com.raizesdonordeste.enums.TipoMovimentacao;
+import br.com.raizesdonordeste.exception.EstoqueInsuficienteException;
 import br.com.raizesdonordeste.exception.NegocioException;
 import br.com.raizesdonordeste.exception.RecursoNaoEncontradoException;
 import br.com.raizesdonordeste.repository.CardapioUnidadeRepository;
@@ -107,5 +108,26 @@ public class EstoqueService {
         unidadeService.buscarEntidade(unidadeId);
         return estoqueRepository.findByUnidadeIdAndProdutoId(unidadeId, produtoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Estoque do produto", produtoId));
+    }
+
+    /** Baixa de venda. Participa da transação do pedido: se algo falhar, tudo é desfeito. */
+    @Transactional
+    public void baixarParaPedido(Long unidadeId, Produto produto, int quantidade,
+                                 Long pedidoId, Long usuarioId) {
+        Estoque estoque = estoqueRepository.findByUnidadeIdAndProdutoId(unidadeId, produto.getId())
+                .orElseThrow(() -> new EstoqueInsuficienteException(produto.getId(), 0, quantidade));
+
+        estoque.baixar(quantidade);
+        estoqueRepository.save(estoque);
+
+        movimentacaoRepository.save(MovimentacaoEstoque.builder()
+                .estoque(estoque)
+                .tipo(TipoMovimentacao.SAIDA)
+                .quantidade(quantidade)
+                .saldoApos(estoque.getQuantidade())
+                .motivo("Venda - pedido #" + pedidoId)
+                .pedidoId(pedidoId)
+                .usuarioId(usuarioId)
+                .build());
     }
 }
