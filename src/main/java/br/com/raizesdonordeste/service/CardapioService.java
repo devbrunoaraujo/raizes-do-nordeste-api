@@ -79,4 +79,13 @@ public class CardapioService {
         item.setDisponivel(request.disponivel());
         return CardapioItemResponse.de(cardapioRepository.save(item));
     }
+
+    /** Item que pode ser vendido agora: está no cardápio, disponível e o produto está ativo. */
+    @Transactional(readOnly = true)
+    public CardapioUnidade buscarItemVendavel(Long unidadeId, Produto produto) {
+        return cardapioRepository.findByUnidadeIdAndProdutoId(unidadeId, produto.getId())
+                .filter(c -> c.isDisponivel() && produto.isAtivo())
+                .orElseThrow(() -> new NegocioException("PRODUTO_INDISPONIVEL",
+                        "O produto " + produto.getId() + " não está disponível nesta unidade"));
+    }
 }
