@@ -2,6 +2,7 @@ package br.com.raizesdonordeste.controller;
 
 import br.com.raizesdonordeste.dto.PedidoRequest;
 import br.com.raizesdonordeste.dto.PedidoResponse;
+import br.com.raizesdonordeste.dto.StatusRequest;
 import br.com.raizesdonordeste.security.UsuarioAutenticado;
 import br.com.raizesdonordeste.service.PedidoService;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import br.com.raizesdonordeste.dto.PageResponse;
 import br.com.raizesdonordeste.enums.CanalPedido;
 import br.com.raizesdonordeste.enums.StatusPedido;
+import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 
@@ -55,5 +57,13 @@ public class PedidoController {
             @PathVariable Long id,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
         return ResponseEntity.ok(pedidoService.buscarPorId(id, usuario));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<PedidoResponse> atualizarStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody StatusRequest request,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return ResponseEntity.ok(pedidoService.atualizarStatus(id, request.status(), usuario));
     }
 }

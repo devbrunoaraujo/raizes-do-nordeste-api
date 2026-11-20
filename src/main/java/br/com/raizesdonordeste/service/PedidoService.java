@@ -20,6 +20,8 @@ import br.com.raizesdonordeste.exception.RecursoNaoEncontradoException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import br.com.raizesdonordeste.exception.AcessoNegadoException;
+import java.util.*;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -186,6 +188,28 @@ public class PedidoService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
         verificarAcesso(pedido, usuario);
         return pedido;
+    }
+
+    /** Quem pode levar o pedido para cada status manual. PAGO e CANCELADO têm fluxo próprio. */
+    private static final Map<StatusPedido, Set<Role>> QUEM_PODE_ALTERAR = Map.of(
+            StatusPedido.EM_PREPARO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
+            StatusPedido.PRONTO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
+            StatusPedido.ENTREGUE, Set.of(Role.ATENDENTE, Role.GERENTE, Role.ADMIN));
+
+    @Transactional
+    public PedidoResponse atualizarStatus(Long id, StatusPedido novoStatus, UsuarioAutenticado usuario) {
+        Set<Role> permitidos = QUEM_PODE_ALTERAR.get(novoStatus);
+        if (permitidos == null) {
+            throw new ValidacaoException("O status " + novoStatus + " não pode ser definido manualmente. "
+                    + "Use /pagamentos para PAGO e /cancelamento para CANCELADO");
+        }
+        if (!permitidos.contains(usuario.role())) {
+            throw new AcessoNegadoException("Seu perfil não pode mover o pedido para " + novoStatus);
+        }
+
+        Pedido pedido = buscarParaAtualizar(id, usuario);
+        pedido.avancarPara(novoStatus); // 409 se a transição for inválida
+        return PedidoResponse.de(pedido);
     }
 
     private void verificarAcesso(Pedido pedido, UsuarioAutenticado usuario) {
