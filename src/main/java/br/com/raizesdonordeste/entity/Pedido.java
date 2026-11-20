@@ -60,6 +60,9 @@ public class Pedido {
     @Column(unique = true, length = 80)
     private String idempotencyKey;
 
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private int pontosResgatados;
+
     /** Quem registrou o pedido (o próprio cliente ou o atendente). Referência lógica, sem FK. */
     private Long criadoPorId;
 
@@ -93,6 +96,12 @@ public class Pedido {
             throw new TransicaoStatusInvalidaException(status, novo);
         }
         status = novo;
+    }
+
+    /** Converte pontos em desconto. O total é recalculado, e o desconto nunca passa do subtotal. */
+    public void aplicarResgate(int pontos, BigDecimal desconto) {
+        this.pontosResgatados = pontos;
+        calcularTotais(desconto);
     }
 
     @PrePersist

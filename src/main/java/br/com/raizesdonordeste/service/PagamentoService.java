@@ -29,6 +29,7 @@ public class PagamentoService {
     private final PagamentoRepository pagamentoRepository;
     private final PedidoService pedidoService;
     private final PagamentoGateway gateway;
+    private final FidelidadeService fidelidadeService;
 
     @Transactional
     public PagamentoResponse pagar(Long pedidoId, PagamentoRequest request, UsuarioAutenticado usuario) {
@@ -61,6 +62,7 @@ public class PagamentoService {
 
             if (resposta.status() == StatusPagamento.APROVADO) {
                 pedido.avancarPara(StatusPedido.PAGO);
+                fidelidadeService.acumularPontos(pedido);
             }
         } catch (GatewayIndisponivelException e) {
             // Tolerância a falhas: registra a tentativa e mantém o pedido pendente para nova tentativa
