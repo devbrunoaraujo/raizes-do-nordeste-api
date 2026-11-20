@@ -4,6 +4,7 @@ import br.com.raizesdonordeste.dto.PedidoRequest;
 import br.com.raizesdonordeste.dto.PedidoResponse;
 import br.com.raizesdonordeste.dto.StatusRequest;
 import br.com.raizesdonordeste.security.UsuarioAutenticado;
+import br.com.raizesdonordeste.service.CancelamentoService;
 import br.com.raizesdonordeste.service.PedidoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.net.URI;
 public class PedidoController {
 
     private final PedidoService pedidoService;
+    private final CancelamentoService cancelamentoService;
 
     @PostMapping
     public ResponseEntity<PedidoResponse> criar(
@@ -65,5 +67,12 @@ public class PedidoController {
             @Valid @RequestBody StatusRequest request,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
         return ResponseEntity.ok(pedidoService.atualizarStatus(id, request.status(), usuario));
+    }
+
+    @PostMapping("/{id}/cancelamento")
+    public ResponseEntity<PedidoResponse> cancelar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return ResponseEntity.ok(cancelamentoService.cancelar(id, usuario));
     }
 }
