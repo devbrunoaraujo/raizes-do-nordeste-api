@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -64,5 +65,18 @@ public class UsuarioService {
     public Usuario buscarEntidade(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+    }
+
+    /** Direito de eliminação (LGPD): remove os dados pessoais e impede novo acesso à conta. */
+    @Transactional
+    public void anonimizar(Long id) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário", id));
+
+        usuario.setNome("Cliente anonimizado");
+        usuario.setEmail("anonimizado-" + usuario.getId() + "@anonimizado.invalid");
+        usuario.setSenhaHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+        usuario.setAtivo(false);
+        usuarioRepository.save(usuario);
     }
 }
