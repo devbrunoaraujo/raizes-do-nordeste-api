@@ -12,6 +12,14 @@ import br.com.raizesdonordeste.security.UsuarioAutenticado;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import br.com.raizesdonordeste.dto.PageResponse;
+import br.com.raizesdonordeste.enums.CanalPedido;
+import br.com.raizesdonordeste.enums.StatusPedido;
+import br.com.raizesdonordeste.exception.AcessoNegadoException;
+import br.com.raizesdonordeste.exception.RecursoNaoEncontradoException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -24,6 +32,7 @@ import java.util.Optional;
 public class PedidoService {
 
     private static final int TAMANHO_MAXIMO_CHAVE = 80;
+    private static final int LIMITE_MAXIMO = 100;
 
     private final PedidoRepository pedidoRepository;
     private final UnidadeService unidadeService;
@@ -123,5 +132,53 @@ public class PedidoService {
             throw new ValidacaoException("Idempotency-Key deve ter no máximo " + TAMANHO_MAXIMO_CHAVE + " caracteres");
         }
         return limpa;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PedidoResponse> listar(CanalPedido canal, StatusPedido status, Long unidadeId,
+                                               int page, int limit, UsuarioAutenticado usuario) {
+        Long unidadeFiltro = unidadeId;
+        Long clienteFiltro = null;
+
+        switch (usuario.role()) {
+            case ADMIN -> { /* enxerga a rede toda, filtros opcionais */ }
+            case CLIENTE -> clienteFiltro = usuario.id(); // só os próprios pedidos
+            default -> {
+                // ATENDENTE, COZINHA e GERENTE: sempre restritos à própria unidade
+                if (usuario.unidadeId() == null) {
+                    throw new AcessoNegadoException("Usuário sem unidade vinculada");
+                }
+                if (unidadeId != null) {
+                    usuario.exigirAcessoAUnidade(unidadeId);
+                }
+                unidadeFiltro = usuario.unidadeId();
+            }
+        }
+
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 1) - 1,
+                Math.min(Math.max(limit, 1), LIMITE_MAXIMO),
+                Sort.by(Sort.Direction.DESC, "criadoEm"));
+
+        return PageResponse.de(pedidoRepository
+                .filtrar(canal, status, unidadeFiltro, clienteFiltro, pageable)
+                .map(PedidoResponse::de));
+    }
+
+    @Transactional(readOnly = true)
+    public PedidoResponse buscarPorId(Long id, UsuarioAutenticado usuario) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
+
+        if (usuario.role() == Role.CLIENTE) {
+            boolean dono = pedido.getCliente() != null && pedido.getCliente().getId().equals(usuario.id());
+            if (!dono) {
+                // 404 (e não 403) para não revelar que o pedido de outra pessoa existe
+                throw new RecursoNaoEncontradoException("Pedido", id);
+            }
+        } else {
+            usuario.exigirAcessoAUnidade(pedido.getUnidade().getId());
+        }
+        return PedidoResponse.de(pedido);
     }
 }
