@@ -167,18 +167,36 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public PedidoResponse buscarPorId(Long id, UsuarioAutenticado usuario) {
+        return PedidoResponse.de(buscarEntidade(id, usuario));
+    }
+
+    /** Pedido que o usuário tem permissão de enxergar. */
+    @Transactional(readOnly = true)
+    public Pedido buscarEntidade(Long id, UsuarioAutenticado usuario) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
+        verificarAcesso(pedido, usuario);
+        return pedido;
+    }
 
+    /** Igual ao anterior, mas com bloqueio de escrita: use nas operações que alteram o pedido. */
+    @Transactional
+    public Pedido buscarParaAtualizar(Long id, UsuarioAutenticado usuario) {
+        Pedido pedido = pedidoRepository.buscarParaAtualizar(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
+        verificarAcesso(pedido, usuario);
+        return pedido;
+    }
+
+    private void verificarAcesso(Pedido pedido, UsuarioAutenticado usuario) {
         if (usuario.role() == Role.CLIENTE) {
             boolean dono = pedido.getCliente() != null && pedido.getCliente().getId().equals(usuario.id());
             if (!dono) {
                 // 404 (e não 403) para não revelar que o pedido de outra pessoa existe
-                throw new RecursoNaoEncontradoException("Pedido", id);
+                throw new RecursoNaoEncontradoException("Pedido", pedido.getId());
             }
         } else {
             usuario.exigirAcessoAUnidade(pedido.getUnidade().getId());
         }
-        return PedidoResponse.de(pedido);
     }
 }

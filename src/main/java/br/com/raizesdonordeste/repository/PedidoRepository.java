@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.util.Optional;
 
@@ -16,6 +18,11 @@ import java.util.Optional;
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     Optional<Pedido> findByIdempotencyKey(String idempotencyKey);
+
+    /** Lê o pedido com bloqueio de escrita (SELECT ... FOR UPDATE): operações concorrentes esperam na fila. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Pedido p where p.id = :id")
+    Optional<Pedido> buscarParaAtualizar(@Param("id") Long id);
 
     /** Filtros opcionais: parâmetro nulo significa "sem filtro". */
     @Query("select p from Pedido p where (:canal is null or p.canalPedido = :canal) "
