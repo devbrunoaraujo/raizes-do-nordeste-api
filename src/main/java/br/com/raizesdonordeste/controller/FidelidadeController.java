@@ -1,10 +1,9 @@
 package br.com.raizesdonordeste.controller;
 
-import br.com.raizesdonordeste.dto.MovimentoFidelidadeResponse;
-import br.com.raizesdonordeste.dto.PageResponse;
-import br.com.raizesdonordeste.dto.SaldoResponse;
+import br.com.raizesdonordeste.dto.*;
 import br.com.raizesdonordeste.security.UsuarioAutenticado;
 import br.com.raizesdonordeste.service.FidelidadeService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,5 +37,12 @@ public class FidelidadeController {
     @DeleteMapping("/consentimento")
     public ResponseEntity<SaldoResponse> revogarConsentimento(@AuthenticationPrincipal UsuarioAutenticado usuario) {
         return ResponseEntity.ok(fidelidadeService.revogarConsentimento(usuario));
+    }
+
+    @PostMapping("/resgates")
+    public ResponseEntity<PedidoResponse> resgatar(
+            @Valid @RequestBody ResgateRequest request,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return ResponseEntity.ok(fidelidadeService.resgatar(request.pedidoId(), request.pontos(), usuario));
     }
 }

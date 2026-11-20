@@ -18,6 +18,7 @@ public record PedidoResponse(
         FormaPagamento formaPagamento,
         BigDecimal subtotal,
         BigDecimal desconto,
+        int pontosResgatados,
         BigDecimal total,
         List<ItemPedidoResponse> itens,
         LocalDateTime criadoEm
@@ -32,6 +33,7 @@ public record PedidoResponse(
                 p.getFormaPagamento(),
                 p.getSubtotal(),
                 p.getDesconto(),
+                p.getPontosResgatados(),
                 p.getTotal(),
                 p.getItens().stream().map(ItemPedidoResponse::de).toList(),
                 p.getCriadoEm());
