@@ -20,6 +20,8 @@ import br.com.raizesdonordeste.exception.RecursoNaoEncontradoException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import br.com.raizesdonordeste.exception.AcessoNegadoException;
+import java.util.*;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -167,18 +169,58 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public PedidoResponse buscarPorId(Long id, UsuarioAutenticado usuario) {
+        return PedidoResponse.de(buscarEntidade(id, usuario));
+    }
+
+    /** Pedido que o usuário tem permissão de enxergar. */
+    @Transactional(readOnly = true)
+    public Pedido buscarEntidade(Long id, UsuarioAutenticado usuario) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
+        verificarAcesso(pedido, usuario);
+        return pedido;
+    }
 
+    /** Igual ao anterior, mas com bloqueio de escrita: use nas operações que alteram o pedido. */
+    @Transactional
+    public Pedido buscarParaAtualizar(Long id, UsuarioAutenticado usuario) {
+        Pedido pedido = pedidoRepository.buscarParaAtualizar(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
+        verificarAcesso(pedido, usuario);
+        return pedido;
+    }
+
+    /** Quem pode levar o pedido para cada status manual. PAGO e CANCELADO têm fluxo próprio. */
+    private static final Map<StatusPedido, Set<Role>> QUEM_PODE_ALTERAR = Map.of(
+            StatusPedido.EM_PREPARO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
+            StatusPedido.PRONTO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
+            StatusPedido.ENTREGUE, Set.of(Role.ATENDENTE, Role.GERENTE, Role.ADMIN));
+
+    @Transactional
+    public PedidoResponse atualizarStatus(Long id, StatusPedido novoStatus, UsuarioAutenticado usuario) {
+        Set<Role> permitidos = QUEM_PODE_ALTERAR.get(novoStatus);
+        if (permitidos == null) {
+            throw new ValidacaoException("O status " + novoStatus + " não pode ser definido manualmente. "
+                    + "Use /pagamentos para PAGO e /cancelamento para CANCELADO");
+        }
+        if (!permitidos.contains(usuario.role())) {
+            throw new AcessoNegadoException("Seu perfil não pode mover o pedido para " + novoStatus);
+        }
+
+        Pedido pedido = buscarParaAtualizar(id, usuario);
+        pedido.avancarPara(novoStatus); // 409 se a transição for inválida
+        return PedidoResponse.de(pedido);
+    }
+
+    private void verificarAcesso(Pedido pedido, UsuarioAutenticado usuario) {
         if (usuario.role() == Role.CLIENTE) {
             boolean dono = pedido.getCliente() != null && pedido.getCliente().getId().equals(usuario.id());
             if (!dono) {
                 // 404 (e não 403) para não revelar que o pedido de outra pessoa existe
-                throw new RecursoNaoEncontradoException("Pedido", id);
+                throw new RecursoNaoEncontradoException("Pedido", pedido.getId());
             }
         } else {
             usuario.exigirAcessoAUnidade(pedido.getUnidade().getId());
         }
-        return PedidoResponse.de(pedido);
     }
 }

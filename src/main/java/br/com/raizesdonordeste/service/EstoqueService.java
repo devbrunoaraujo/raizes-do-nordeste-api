@@ -130,4 +130,25 @@ public class EstoqueService {
                 .usuarioId(usuarioId)
                 .build());
     }
+
+    /** Devolve ao estoque o que foi baixado por um pedido cancelado. */
+    @Transactional
+    public void devolverParaPedido(Long unidadeId, Produto produto, int quantidade,
+                                   Long pedidoId, Long usuarioId) {
+        Estoque estoque = estoqueRepository.findByUnidadeIdAndProdutoId(unidadeId, produto.getId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Estoque do produto", produto.getId()));
+
+        estoque.repor(quantidade);
+        estoqueRepository.save(estoque);
+
+        movimentacaoRepository.save(MovimentacaoEstoque.builder()
+                .estoque(estoque)
+                .tipo(TipoMovimentacao.ENTRADA)
+                .quantidade(quantidade)
+                .saldoApos(estoque.getQuantidade())
+                .motivo("Cancelamento - pedido #" + pedidoId)
+                .pedidoId(pedidoId)
+                .usuarioId(usuarioId)
+                .build());
+    }
 }
