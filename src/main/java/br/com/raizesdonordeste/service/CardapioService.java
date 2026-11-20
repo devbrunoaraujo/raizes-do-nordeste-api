@@ -80,12 +80,23 @@ public class CardapioService {
         return CardapioItemResponse.de(cardapioRepository.save(item));
     }
 
-    /** Item que pode ser vendido agora: está no cardápio, disponível e o produto está ativo. */
+    /** Item que pode ser vendido agora. Cada motivo de recusa tem seu próprio código de erro. */
     @Transactional(readOnly = true)
     public CardapioUnidade buscarItemVendavel(Long unidadeId, Produto produto) {
-        return cardapioRepository.findByUnidadeIdAndProdutoId(unidadeId, produto.getId())
-                .filter(c -> c.isDisponivel() && produto.isAtivo())
-                .orElseThrow(() -> new NegocioException("PRODUTO_INDISPONIVEL",
-                        "O produto " + produto.getId() + " não está disponível nesta unidade"));
+        if (!produto.isAtivo()) {
+            throw new NegocioException("PRODUTO_INATIVO",
+                    "O produto " + produto.getId() + " está inativo");
+        }
+
+        CardapioUnidade item = cardapioRepository
+                .findByUnidadeIdAndProdutoId(unidadeId, produto.getId())
+                .orElseThrow(() -> new NegocioException("PRODUTO_FORA_DO_CARDAPIO",
+                        "O produto " + produto.getId() + " não faz parte do cardápio desta unidade"));
+
+        if (!item.isDisponivel()) {
+            throw new NegocioException("PRODUTO_INDISPONIVEL",
+                    "O produto " + produto.getId() + " está temporariamente indisponível nesta unidade");
+        }
+        return item;
     }
 }

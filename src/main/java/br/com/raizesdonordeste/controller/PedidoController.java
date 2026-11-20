@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import br.com.raizesdonordeste.dto.PageResponse;
+import br.com.raizesdonordeste.enums.CanalPedido;
+import br.com.raizesdonordeste.enums.StatusPedido;
 
 import java.net.URI;
 
@@ -33,5 +36,24 @@ public class PedidoController {
                     .body(resultado.pedido());
         }
         return ResponseEntity.ok(resultado.pedido()); // repetição idempotente
+    }
+
+    @GetMapping
+    public ResponseEntity<PageResponse<PedidoResponse>> listar(
+            @RequestParam(required = false) CanalPedido canalPedido,
+            @RequestParam(required = false) StatusPedido status,
+            @RequestParam(required = false) Long unidadeId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return ResponseEntity.ok(
+                pedidoService.listar(canalPedido, status, unidadeId, page, limit, usuario));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PedidoResponse> buscarPorId(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return ResponseEntity.ok(pedidoService.buscarPorId(id, usuario));
     }
 }
