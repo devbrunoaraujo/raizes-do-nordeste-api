@@ -19,6 +19,7 @@ public class CancelamentoService {
     private final PedidoService pedidoService;
     private final EstoqueService estoqueService;
     private final PagamentoService pagamentoService;
+    private final FidelidadeService fidelidadeService;
 
     @Transactional
     public PedidoResponse cancelar(Long pedidoId, UsuarioAutenticado usuario) {
@@ -36,6 +37,7 @@ public class CancelamentoService {
                     item.getQuantidade(), pedido.getId(), usuario.id());
         }
         pagamentoService.estornarAprovados(pedido.getId());
+        fidelidadeService.estornarPedido(pedido);
 
         return PedidoResponse.de(pedido);
     }
