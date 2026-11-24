@@ -86,11 +86,13 @@ public class GlobalExceptionHandler {
         return erro(HttpStatus.CONFLICT, ex.getCodigo(), ex.getMessage(), req, List.of());
     }
 
-   
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErroResponse> integridade(DataIntegrityViolationException ex,
                                                     HttpServletRequest req) {
-        log.warn("Violação de integridade em {}: {}", req.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        // Só a classe da causa: a mensagem do banco pode conter dados pessoais (ex.: e-mail duplicado)
+        log.warn("Violação de integridade em {} ({})", req.getRequestURI(),
+                ex.getMostSpecificCause().getClass().getSimpleName());
         return erro(HttpStatus.CONFLICT, "CONFLITO_DADOS",
                 "A operação viola uma regra de integridade dos dados", req, List.of());
     }
