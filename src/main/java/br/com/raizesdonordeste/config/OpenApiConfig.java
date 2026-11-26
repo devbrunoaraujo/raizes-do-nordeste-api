@@ -72,7 +72,9 @@ public class OpenApiConfig {
             new Tag().name("Pedidos").description("Criação, consulta por canal e status, andamento e cancelamento"),
             new Tag().name("Pagamentos").description("Cobrança via gateway externo simulado"),
             new Tag().name("Fidelidade").description("Consentimento, pontos, histórico e resgate"),
+            new Tag().name("Auditoria").description("Trilha de operações sensíveis (ADMIN)"),
             new Tag().name("Cliente (LGPD)").description("Dados pessoais do titular: acesso, correção e anonimização"));
+
 
     @Bean
     public OpenAPI openAPI() {
@@ -301,6 +303,9 @@ public class OpenApiConfig {
     private static final Map<String, Object> CLIENTE = obj("usuarioId", 5, "nome", "Maria Silva",
             "email", "maria@email.com", "dataNascimento", "1995-05-20",
             "consentimentoFidelidade", true, "consentimentoEm", "2026-11-18T20:00:00");
+    private static final Map<String, Object> AUDITORIA = obj("id", 41, "usuarioId", 5, "acao", "PEDIDO_CRIADO",
+            "entidade", "Pedido", "entidadeId", 12, "detalhes", "canal=APP, unidade=1, total=29.00",
+            "criadoEm", "2026-11-18T20:04:32");
 
     // ------------------------------------------------------------------
     // Tabela central: "MÉTODO /rota" -> documentação
@@ -509,6 +514,11 @@ public class OpenApiConfig {
         m.put("DELETE /clientes/me", d("Cliente (LGPD)", "Anonimizar minha conta")
                 .descricao("Direito de eliminação. Remove nome, e-mail e data de nascimento, invalida a senha e desativa o acesso (o token atual deixa de valer). Os pedidos permanecem, sem identificar a pessoa.")
                 .ok("204", "Conta anonimizada"));
+
+        // ---------- Auditoria ----------
+        m.put("GET /auditoria", d("Auditoria", "Consultar trilha de auditoria")
+                .descricao("Somente ADMIN. Mais recentes primeiro. Filtros opcionais `acao` (ex.: PEDIDO_CRIADO, STATUS_ALTERADO, PEDIDO_CANCELADO, PAGAMENTO_APROVADO, PAGAMENTO_RECUSADO, PAGAMENTO_ERRO, ESTOQUE_ENTRADA, ESTOQUE_SAIDA, USUARIO_CRIADO, USUARIO_CONSULTADO, CLIENTE_ANONIMIZADO, RESGATE_PONTOS, CONSENTIMENTO_CONCEDIDO, CONSENTIMENTO_REVOGADO) e `entidade` (Pedido, Pagamento, Estoque, Usuario, ClientePerfil). O campo `detalhes` guarda só ids e valores, nunca dado pessoal.")
+                .ok("200", "Página de registros").exemplo("200", pagina(AUDITORIA)));
 
         return m;
     }

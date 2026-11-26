@@ -34,6 +34,7 @@ public class EstoqueService {
     private final CardapioUnidadeRepository cardapioRepository;
     private final UnidadeService unidadeService;
     private final ProdutoService produtoService;
+    private final AuditoriaService auditoriaService; // AUDITORIA
 
     @Transactional(readOnly = true)
     public PageResponse<EstoqueResponse> listar(Long unidadeId, int page, int limit,
@@ -101,13 +102,11 @@ public class EstoqueService {
                 .usuarioId(usuario.id())
                 .build());
 
-        return MovimentacaoResponse.de(movimentacao);
-    }
+        auditoriaService.registrar(usuario.id(), "ESTOQUE_" + request.tipo(), "Estoque", estoque.getId(),
+                "produto=" + produto.getId() + ", quantidade=" + request.quantidade()
+                        + ", saldoApos=" + estoque.getQuantidade()); // AUDITORIA
 
-    private Estoque buscarEstoque(Long unidadeId, Long produtoId) {
-        unidadeService.buscarEntidade(unidadeId);
-        return estoqueRepository.findByUnidadeIdAndProdutoId(unidadeId, produtoId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Estoque do produto", produtoId));
+        return MovimentacaoResponse.de(movimentacao);
     }
 
     /** Baixa de venda. Participa da transação do pedido: se algo falhar, tudo é desfeito. */
@@ -150,5 +149,11 @@ public class EstoqueService {
                 .pedidoId(pedidoId)
                 .usuarioId(usuarioId)
                 .build());
+    }
+
+    private Estoque buscarEstoque(Long unidadeId, Long produtoId) {
+        unidadeService.buscarEntidade(unidadeId);
+        return estoqueRepository.findByUnidadeIdAndProdutoId(unidadeId, produtoId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Estoque do produto", produtoId));
     }
 }

@@ -1,33 +1,37 @@
 package br.com.raizesdonordeste.service;
 
 import br.com.raizesdonordeste.dto.ItemPedidoRequest;
+import br.com.raizesdonordeste.dto.PageResponse;
 import br.com.raizesdonordeste.dto.PedidoRequest;
 import br.com.raizesdonordeste.dto.PedidoResponse;
-import br.com.raizesdonordeste.entity.*;
+import br.com.raizesdonordeste.entity.CardapioUnidade;
+import br.com.raizesdonordeste.entity.ItemPedido;
+import br.com.raizesdonordeste.entity.Pedido;
+import br.com.raizesdonordeste.entity.Produto;
+import br.com.raizesdonordeste.entity.Unidade;
+import br.com.raizesdonordeste.entity.Usuario;
+import br.com.raizesdonordeste.enums.CanalPedido;
 import br.com.raizesdonordeste.enums.Role;
+import br.com.raizesdonordeste.enums.StatusPedido;
+import br.com.raizesdonordeste.exception.AcessoNegadoException;
 import br.com.raizesdonordeste.exception.NegocioException;
+import br.com.raizesdonordeste.exception.RecursoNaoEncontradoException;
 import br.com.raizesdonordeste.exception.ValidacaoException;
 import br.com.raizesdonordeste.repository.PedidoRepository;
 import br.com.raizesdonordeste.security.UsuarioAutenticado;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import br.com.raizesdonordeste.dto.PageResponse;
-import br.com.raizesdonordeste.enums.CanalPedido;
-import br.com.raizesdonordeste.enums.StatusPedido;
-import br.com.raizesdonordeste.exception.AcessoNegadoException;
-import br.com.raizesdonordeste.exception.RecursoNaoEncontradoException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import br.com.raizesdonordeste.exception.AcessoNegadoException;
-import java.util.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -36,12 +40,19 @@ public class PedidoService {
     private static final int TAMANHO_MAXIMO_CHAVE = 80;
     private static final int LIMITE_MAXIMO = 100;
 
+    /** Quem pode levar o pedido para cada status manual. PAGO e CANCELADO têm fluxo próprio. */
+    private static final Map<StatusPedido, Set<Role>> QUEM_PODE_ALTERAR = Map.of(
+            StatusPedido.EM_PREPARO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
+            StatusPedido.PRONTO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
+            StatusPedido.ENTREGUE, Set.of(Role.ATENDENTE, Role.GERENTE, Role.ADMIN));
+
     private final PedidoRepository pedidoRepository;
     private final UnidadeService unidadeService;
     private final ProdutoService produtoService;
     private final UsuarioService usuarioService;
     private final CardapioService cardapioService;
     private final EstoqueService estoqueService;
+    private final AuditoriaService auditoriaService; // AUDITORIA
 
     /** criado = false significa que a chave de idempotência já tinha gerado este pedido. */
     public record Resultado(PedidoResponse pedido, boolean criado) {
@@ -100,40 +111,12 @@ public class PedidoService {
                     item.getQuantidade(), pedido.getId(), usuario.id());
         }
 
+        // AUDITORIA: só chega aqui se tudo deu certo (na falha, a transação desfaz o registro)
+        auditoriaService.registrar(usuario.id(), "PEDIDO_CRIADO", "Pedido", pedido.getId(),
+                "canal=" + pedido.getCanalPedido() + ", unidade=" + unidade.getId()
+                        + ", total=" + pedido.getTotal());
+
         return new Resultado(PedidoResponse.de(pedido), true);
-    }
-
-    private Usuario resolverCliente(Long clienteIdInformado, UsuarioAutenticado usuario) {
-        if (usuario.role() == Role.CLIENTE) {
-            // Cliente só compra para si: o clienteId do corpo é ignorado
-            return usuarioService.buscarEntidade(usuario.id());
-        }
-        if (clienteIdInformado == null) {
-            return null; // venda anônima
-        }
-        Usuario cliente = usuarioService.buscarEntidade(clienteIdInformado);
-        if (cliente.getRole() != Role.CLIENTE) {
-            throw new NegocioException("CLIENTE_INVALIDO", "O usuário informado não é um cliente");
-        }
-        return cliente;
-    }
-
-    /** Soma as quantidades se o mesmo produto aparecer em mais de uma linha. */
-    private Map<Long, Integer> consolidar(List<ItemPedidoRequest> itens) {
-        Map<Long, Integer> quantidades = new LinkedHashMap<>();
-        for (ItemPedidoRequest item : itens) {
-            quantidades.merge(item.produtoId(), item.quantidade(), Integer::sum);
-        }
-        return quantidades;
-    }
-
-    private String normalizarChave(String chave) {
-        if (chave == null || chave.isBlank()) return null;
-        String limpa = chave.trim();
-        if (limpa.length() > TAMANHO_MAXIMO_CHAVE) {
-            throw new ValidacaoException("Idempotency-Key deve ter no máximo " + TAMANHO_MAXIMO_CHAVE + " caracteres");
-        }
-        return limpa;
     }
 
     @Transactional(readOnly = true)
@@ -190,12 +173,6 @@ public class PedidoService {
         return pedido;
     }
 
-    /** Quem pode levar o pedido para cada status manual. PAGO e CANCELADO têm fluxo próprio. */
-    private static final Map<StatusPedido, Set<Role>> QUEM_PODE_ALTERAR = Map.of(
-            StatusPedido.EM_PREPARO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
-            StatusPedido.PRONTO, Set.of(Role.COZINHA, Role.GERENTE, Role.ADMIN),
-            StatusPedido.ENTREGUE, Set.of(Role.ATENDENTE, Role.GERENTE, Role.ADMIN));
-
     @Transactional
     public PedidoResponse atualizarStatus(Long id, StatusPedido novoStatus, UsuarioAutenticado usuario) {
         Set<Role> permitidos = QUEM_PODE_ALTERAR.get(novoStatus);
@@ -208,7 +185,10 @@ public class PedidoService {
         }
 
         Pedido pedido = buscarParaAtualizar(id, usuario);
+        StatusPedido anterior = pedido.getStatus(); // AUDITORIA
         pedido.avancarPara(novoStatus); // 409 se a transição for inválida
+        auditoriaService.registrar(usuario.id(), "STATUS_ALTERADO", "Pedido", pedido.getId(),
+                anterior + " -> " + novoStatus); // AUDITORIA
         return PedidoResponse.de(pedido);
     }
 
@@ -222,5 +202,38 @@ public class PedidoService {
         } else {
             usuario.exigirAcessoAUnidade(pedido.getUnidade().getId());
         }
+    }
+
+    private Usuario resolverCliente(Long clienteIdInformado, UsuarioAutenticado usuario) {
+        if (usuario.role() == Role.CLIENTE) {
+            // Cliente só compra para si: o clienteId do corpo é ignorado
+            return usuarioService.buscarEntidade(usuario.id());
+        }
+        if (clienteIdInformado == null) {
+            return null; // venda anônima
+        }
+        Usuario cliente = usuarioService.buscarEntidade(clienteIdInformado);
+        if (cliente.getRole() != Role.CLIENTE) {
+            throw new NegocioException("CLIENTE_INVALIDO", "O usuário informado não é um cliente");
+        }
+        return cliente;
+    }
+
+    /** Soma as quantidades se o mesmo produto aparecer em mais de uma linha. */
+    private Map<Long, Integer> consolidar(List<ItemPedidoRequest> itens) {
+        Map<Long, Integer> quantidades = new LinkedHashMap<>();
+        for (ItemPedidoRequest item : itens) {
+            quantidades.merge(item.produtoId(), item.quantidade(), Integer::sum);
+        }
+        return quantidades;
+    }
+
+    private String normalizarChave(String chave) {
+        if (chave == null || chave.isBlank()) return null;
+        String limpa = chave.trim();
+        if (limpa.length() > TAMANHO_MAXIMO_CHAVE) {
+            throw new ValidacaoException("Idempotency-Key deve ter no máximo " + TAMANHO_MAXIMO_CHAVE + " caracteres");
+        }
+        return limpa;
     }
 }

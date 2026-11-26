@@ -36,6 +36,7 @@ public class FidelidadeService {
     private final ClientePerfilRepository perfilRepository;
     private final ClienteService clienteService;
     private final PedidoService pedidoService;
+    private final AuditoriaService auditoriaService; // AUDITORIA
 
     @Transactional
     public SaldoResponse consultarSaldo(UsuarioAutenticado usuario) {
@@ -59,6 +60,8 @@ public class FidelidadeService {
         if (!perfil.isConsentimentoFidelidade()) {
             perfil.darConsentimento();
             perfilRepository.save(perfil);
+            auditoriaService.registrar(usuario.id(), "CONSENTIMENTO_CONCEDIDO", "ClientePerfil",
+                    perfil.getId(), null); // AUDITORIA: só quando há mudança real
         }
         return montarSaldo(perfil);
     }
@@ -69,13 +72,10 @@ public class FidelidadeService {
         if (perfil.isConsentimentoFidelidade()) {
             perfil.revogarConsentimento();
             perfilRepository.save(perfil);
+            auditoriaService.registrar(usuario.id(), "CONSENTIMENTO_REVOGADO", "ClientePerfil",
+                    perfil.getId(), null); // AUDITORIA: só quando há mudança real
         }
         return montarSaldo(perfil);
-    }
-
-    private SaldoResponse montarSaldo(ClientePerfil perfil) {
-        long saldo = movimentoRepository.saldo(perfil.getId());
-        return new SaldoResponse(perfil.isConsentimentoFidelidade(), saldo, VALOR_PONTO, RESGATE_MINIMO);
     }
 
     /** Chamado quando o pagamento é aprovado. Só acumula se o cliente consentiu. */
@@ -162,6 +162,14 @@ public class FidelidadeService {
                 .descricao("Resgate - pedido #" + pedido.getId())
                 .build());
 
+        auditoriaService.registrar(usuario.id(), "RESGATE_PONTOS", "Pedido", pedido.getId(),
+                "pontos=" + pontos + ", desconto=" + desconto); // AUDITORIA
+
         return PedidoResponse.de(pedido);
+    }
+
+    private SaldoResponse montarSaldo(ClientePerfil perfil) {
+        long saldo = movimentoRepository.saldo(perfil.getId());
+        return new SaldoResponse(perfil.isConsentimentoFidelidade(), saldo, VALOR_PONTO, RESGATE_MINIMO);
     }
 }

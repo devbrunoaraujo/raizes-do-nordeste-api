@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -33,6 +32,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // A primeira regra que combina vence: as mais específicas vêm antes das genéricas
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/auth/**", "/error").permitAll()
@@ -44,6 +44,9 @@ public class SecurityConfig {
                         .requestMatchers("/unidades/**").hasRole("ADMIN")
                         .requestMatchers("/produtos/**").hasAnyRole("GERENTE", "ADMIN")
                         .requestMatchers("/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers("/auditoria/**").hasRole("ADMIN") // AUDITORIA
+                        .requestMatchers("/clientes/me/**").hasRole("CLIENTE")
+                        .requestMatchers("/fidelidade/**").hasRole("CLIENTE")
                         .requestMatchers(HttpMethod.POST, "/pedidos")
                         .hasAnyRole("CLIENTE", "ATENDENTE", "GERENTE", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/pedidos/*/pagamentos")
@@ -52,8 +55,6 @@ public class SecurityConfig {
                         .hasAnyRole("CLIENTE", "ATENDENTE", "GERENTE", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/pedidos/*/status")
                         .hasAnyRole("ATENDENTE", "COZINHA", "GERENTE", "ADMIN")
-                        .requestMatchers("/clientes/me/**").hasRole("CLIENTE")
-                        .requestMatchers("/fidelidade/**").hasRole("CLIENTE")
                         .anyRequest().authenticated())
                 // Erros de segurança passam pelo GlobalExceptionHandler: mesmo JSON padrão da API
                 .exceptionHandling(e -> e
