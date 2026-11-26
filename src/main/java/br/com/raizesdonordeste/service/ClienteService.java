@@ -15,6 +15,7 @@ public class ClienteService {
 
     private final ClientePerfilRepository perfilRepository;
     private final UsuarioService usuarioService;
+    private final AuditoriaService auditoriaService; // AUDITORIA
 
     /** Cria o perfil no primeiro acesso: clientes cadastrados antes deste bloco também funcionam. */
     @Transactional
@@ -42,6 +43,7 @@ public class ClienteService {
         ClientePerfil perfil = obterOuCriarPerfil(usuario.id());
         perfil.anonimizar();
         perfilRepository.save(perfil);
+        auditoriaService.registrar(usuario.id(), "CLIENTE_ANONIMIZADO", "Usuario", usuario.id(), null); // AUDITORIA
         usuarioService.anonimizar(usuario.id());
     }
 }

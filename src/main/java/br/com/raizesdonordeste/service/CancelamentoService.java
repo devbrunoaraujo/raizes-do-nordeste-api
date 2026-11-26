@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Caso de uso que orquestra pedido, estoque e pagamento. Por isso fica fora dos três services. */
+/** Caso de uso que orquestra pedido, estoque, pagamento e pontos. Por isso fica fora dos outros services. */
 @Service
 @RequiredArgsConstructor
 public class CancelamentoService {
@@ -20,6 +20,7 @@ public class CancelamentoService {
     private final EstoqueService estoqueService;
     private final PagamentoService pagamentoService;
     private final FidelidadeService fidelidadeService;
+    private final AuditoriaService auditoriaService; // AUDITORIA
 
     @Transactional
     public PedidoResponse cancelar(Long pedidoId, UsuarioAutenticado usuario) {
@@ -30,6 +31,7 @@ public class CancelamentoService {
                     "O pedido já está em preparo. Procure o atendimento da unidade");
         }
 
+        StatusPedido anterior = pedido.getStatus(); // AUDITORIA
         pedido.avancarPara(StatusPedido.CANCELADO); // 409 se já estiver pronto, entregue ou cancelado
 
         for (ItemPedido item : pedido.getItens()) {
@@ -38,6 +40,9 @@ public class CancelamentoService {
         }
         pagamentoService.estornarAprovados(pedido.getId());
         fidelidadeService.estornarPedido(pedido);
+
+        auditoriaService.registrar(usuario.id(), "PEDIDO_CANCELADO", "Pedido", pedido.getId(),
+                "status anterior=" + anterior); // AUDITORIA
 
         return PedidoResponse.de(pedido);
     }

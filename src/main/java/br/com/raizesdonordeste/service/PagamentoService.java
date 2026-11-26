@@ -30,6 +30,7 @@ public class PagamentoService {
     private final PedidoService pedidoService;
     private final PagamentoGateway gateway;
     private final FidelidadeService fidelidadeService;
+    private final AuditoriaService auditoriaService; // AUDITORIA
 
     @Transactional
     public PagamentoResponse pagar(Long pedidoId, PagamentoRequest request, UsuarioAutenticado usuario) {
@@ -71,7 +72,11 @@ public class PagamentoService {
             pagamento.setMensagem("Gateway de pagamento indisponível. Tente novamente");
         }
 
-        return PagamentoResponse.de(pagamentoRepository.save(pagamento));
+        Pagamento salvo = pagamentoRepository.save(pagamento);
+        // AUDITORIA: cada tentativa fica registrada (PAGAMENTO_APROVADO, PAGAMENTO_RECUSADO ou PAGAMENTO_ERRO)
+        auditoriaService.registrar(usuario.id(), "PAGAMENTO_" + salvo.getStatus(), "Pagamento",
+                salvo.getId(), "pedido=" + pedidoId + ", valor=" + salvo.getValor());
+        return PagamentoResponse.de(salvo);
     }
 
     @Transactional(readOnly = true)
